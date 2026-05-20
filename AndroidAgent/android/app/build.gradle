@@ -21,6 +21,10 @@ android {
 
     namespace "com.androidagent"
 
+    aaptOptions {
+        cruncherEnabled false
+    }
+
     defaultConfig {
         applicationId "com.androidagent"
         minSdkVersion rootProject.ext.minSdkVersion
