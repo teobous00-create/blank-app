@@ -73,7 +73,10 @@ jobs:
           echo "Platforms: $(ls $ANDROID_HOME/platforms/ 2>/dev/null || echo none)"
           echo "BuildTools: $(ls $ANDROID_HOME/build-tools/ 2>/dev/null || echo none)"
           echo "node_modules exists: $(test -d AndroidAgent/node_modules && echo yes || echo NO)"
-          echo "RN plugin exists: $(test -d AndroidAgent/node_modules/@react-native/gradle-plugin && echo yes || echo NO)"
+          echo "=== @react-native/gradle-plugin structure ==="
+          ls AndroidAgent/node_modules/@react-native/gradle-plugin/ 2>/dev/null || echo "NOT FOUND"
+          echo "=== RN gradle-plugin settings.gradle ==="
+          cat AndroidAgent/node_modules/@react-native/gradle-plugin/settings.gradle 2>/dev/null || echo "NOT FOUND"
 
       - name: Create local.properties
         working-directory: AndroidAgent/android

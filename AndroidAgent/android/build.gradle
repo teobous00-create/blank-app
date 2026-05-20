@@ -13,10 +13,14 @@ buildscript {
     }
     dependencies {
         classpath("com.android.tools.build:gradle:8.3.2")
-        // react-native-gradle-plugin is loaded via includeBuild in settings.gradle (RN 0.71+).
-        // Do NOT add it here via classpath — that's the legacy ≤0.70 approach and causes conflicts.
         classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlinVersion")
     }
 }
 
-apply plugin: "com.facebook.react.rootproject"
+// Must use plugins{} not apply plugin so Gradle resolves this via
+// pluginManagement { includeBuild } in settings.gradle (RN 0.71+).
+// `apply plugin` only looks in buildscript.classpath, where this plugin
+// no longer lives.
+plugins {
+    id("com.facebook.react.rootproject")
+}

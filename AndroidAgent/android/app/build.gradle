@@ -1,13 +1,17 @@
-apply plugin: "com.android.application"
-apply plugin: "org.jetbrains.kotlin.android"
-apply plugin: "com.facebook.react"
+// Use plugins{} for all three so they resolve via pluginManagement includeBuild.
+// apply plugin: "..." only looks in buildscript classpath; com.facebook.react
+// lives in the includeBuild, not the classpath.
+plugins {
+    id("com.android.application")
+    id("org.jetbrains.kotlin.android")
+    id("com.facebook.react")
+}
 
-// Must be defined before the android {} block — Gradle evaluates all
-// buildTypes at configuration time, including release, even for debug builds.
+// Gradle evaluates ALL buildTypes at configuration time, including release.
 def enableProguardInReleaseBuilds = false
 
 react {
-    /* Autolinking & codegen config. com.facebook.react handles it. */
+    /* Autolinking & codegen handled by com.facebook.react plugin (RN 0.71+) */
 }
 
 android {
