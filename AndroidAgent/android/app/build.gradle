@@ -2,8 +2,12 @@ apply plugin: "com.android.application"
 apply plugin: "org.jetbrains.kotlin.android"
 apply plugin: "com.facebook.react"
 
+// Must be defined before the android {} block — Gradle evaluates all
+// buildTypes at configuration time, including release, even for debug builds.
+def enableProguardInReleaseBuilds = false
+
 react {
-    /* Autolinking & codegen config */
+    /* Autolinking & codegen config. com.facebook.react handles it. */
 }
 
 android {
@@ -56,6 +60,3 @@ dependencies {
     implementation("com.facebook.react:hermes-android")
     implementation("org.jetbrains.kotlin:kotlin-stdlib:$kotlinVersion")
 }
-
-// Autolinking is handled by the com.facebook.react plugin (RN 0.71+).
-// The legacy native_modules.gradle approach is no longer needed.

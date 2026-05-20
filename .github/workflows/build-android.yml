@@ -68,7 +68,23 @@ jobs:
             SDKMANAGER=$(find "$ANDROID_HOME" -name "sdkmanager" -type f | head -1)
           fi
           yes | "$SDKMANAGER" --licenses || true
-          "$SDKMANAGER" "platform-tools" "platforms;android-34" "build-tools;34.0.0"
+          "$SDKMANAGER" \
+            "platform-tools" \
+            "platforms;android-34" \
+            "build-tools;34.0.0" \
+            "ndk;26.1.10909125"
+
+      - name: Diagnose SDK environment
+        run: |
+          echo "=== ANDROID_HOME: $ANDROID_HOME ==="
+          echo "=== NDK versions ==="
+          ls "$ANDROID_HOME/ndk/" 2>/dev/null || echo "(no ndk dir)"
+          echo "=== Build-tools ==="
+          ls "$ANDROID_HOME/build-tools/" 2>/dev/null || echo "(no build-tools dir)"
+          echo "=== Platforms ==="
+          ls "$ANDROID_HOME/platforms/" 2>/dev/null || echo "(no platforms dir)"
+          echo "=== Node ==="
+          node --version && which node
 
       - name: Create local.properties
         working-directory: AndroidAgent/android
