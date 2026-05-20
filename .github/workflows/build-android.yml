@@ -32,30 +32,18 @@ jobs:
         with:
           node-version: '18'
 
-      # ── 4. npm install (verbose so failures are visible) ────────────────────
+      # ── 4. npm install ───────────────────────────────────────────────────────
       - name: Install npm dependencies
         working-directory: AndroidAgent
         run: npm install --verbose 2>&1 | tail -40
 
-      # ── 5. Gradle wrapper ────────────────────────────────────────────────────
-      - name: Download Gradle 8.7 distribution
-        run: |
-          wget -q https://services.gradle.org/distributions/gradle-8.7-bin.zip \
-               -O /tmp/gradle-8.7-bin.zip
-          unzip -q /tmp/gradle-8.7-bin.zip -d /tmp/gradle
-
-      - name: Generate Gradle wrapper in isolated project
-        run: |
-          mkdir -p /tmp/wrapper-init
-          echo 'rootProject.name = "wrapper-init"' > /tmp/wrapper-init/settings.gradle
-          /tmp/gradle/gradle-8.7/bin/gradle wrapper \
-            --gradle-version=8.7 \
-            --project-dir /tmp/wrapper-init
-          mkdir -p AndroidAgent/android/gradle/wrapper
-          cp /tmp/wrapper-init/gradle/wrapper/gradle-wrapper.jar \
-             AndroidAgent/android/gradle/wrapper/gradle-wrapper.jar
-          cp /tmp/wrapper-init/gradlew AndroidAgent/android/gradlew
-          chmod +x AndroidAgent/android/gradlew
+      # ── 5. Gradle (download & cache the 8.7 distribution once) ───────────────
+      # gradle-wrapper.jar + gradlew are committed; this action downloads the
+      # 100 MB Gradle distribution and caches it across runs.
+      - name: Set up Gradle (cached)
+        uses: gradle/actions/setup-gradle@v3
+        with:
+          cache-read-only: false
 
       # ── 6. Android SDK ──────────────────────────────────────────────────────
       - name: Accept Android SDK licences & install components
@@ -64,19 +52,6 @@ jobs:
           [ -f "$SDKMANAGER" ] || SDKMANAGER=$(find "$ANDROID_HOME" -name "sdkmanager" -type f | head -1)
           yes | "$SDKMANAGER" --licenses || true
           "$SDKMANAGER" "platform-tools" "platforms;android-34" "build-tools;34.0.0" "ndk;26.1.10909125"
-
-      - name: Diagnose environment
-        run: |
-          echo "NODE=$(node --version) at $(which node)"
-          echo "ANDROID_HOME=$ANDROID_HOME"
-          echo "NDK: $(ls $ANDROID_HOME/ndk/ 2>/dev/null || echo none)"
-          echo "Platforms: $(ls $ANDROID_HOME/platforms/ 2>/dev/null || echo none)"
-          echo "BuildTools: $(ls $ANDROID_HOME/build-tools/ 2>/dev/null || echo none)"
-          echo "node_modules exists: $(test -d AndroidAgent/node_modules && echo yes || echo NO)"
-          echo "=== @react-native/gradle-plugin structure ==="
-          ls AndroidAgent/node_modules/@react-native/gradle-plugin/ 2>/dev/null || echo "NOT FOUND"
-          echo "=== RN gradle-plugin settings.gradle ==="
-          cat AndroidAgent/node_modules/@react-native/gradle-plugin/settings.gradle 2>/dev/null || echo "NOT FOUND"
 
       - name: Create local.properties
         working-directory: AndroidAgent/android
@@ -99,10 +74,11 @@ jobs:
         working-directory: AndroidAgent/android
         run: |
           set -o pipefail
+          chmod +x gradlew
           ./gradlew assembleDebug --no-daemon --stacktrace \
             2>&1 | tee /tmp/gradle-build.log
 
-      # ── Post error as PR comment on failure (readable via API) ───────────────
+      # ── On failure: post readable snippet to PR ───────────────────────────────
       - name: Post failure details to PR
         if: failure()
         env:
@@ -111,12 +87,15 @@ jobs:
           LOG=/tmp/gradle-build.log
           if [ -f "$LOG" ]; then
             SNIPPET=$(grep -E "FAILURE:|> Task|Exception|error:|Could not|Unresolved" "$LOG" \
-              | head -60 | sed 's/`/'"'"'/g')
+              | head -60 | sed "s/\`/'/g")
           else
-            SNIPPET="No gradle log captured — failure happened before the build step."
+            SNIPPET="No gradle log — failure happened before the build step."
           fi
-          gh pr comment 1 --body "$(printf '## ❌ Build #%s failed\n\n```\n%s\n```' \
-            '${{ github.run_number }}' "$SNIPPET")"
+          gh pr comment 1 --body "## Build #${{ github.run_number }} failed
+
+\`\`\`
+${SNIPPET}
+\`\`\`" || true
 
       - name: Upload full Gradle log (always)
         if: always()
