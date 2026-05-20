@@ -1,0 +1,26 @@
+buildscript {
+    ext {
+        buildToolsVersion = "34.0.0"
+        minSdkVersion = 26
+        compileSdkVersion = 34
+        targetSdkVersion = 34
+        ndkVersion = "26.1.10909125"
+        kotlinVersion = "1.9.24"
+    }
+    repositories {
+        google()
+        mavenCentral()
+    }
+    dependencies {
+        classpath("com.android.tools.build:gradle:8.3.2")
+        classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlinVersion")
+    }
+}
+
+// Must use plugins{} not apply plugin so Gradle resolves this via
+// pluginManagement { includeBuild } in settings.gradle (RN 0.71+).
+// `apply plugin` only looks in buildscript.classpath, where this plugin
+// no longer lives.
+plugins {
+    id("com.facebook.react.rootproject")
+}

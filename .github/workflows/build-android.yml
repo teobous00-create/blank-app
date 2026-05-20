@@ -1,0 +1,155 @@
+name: Build Android APK
+
+on:
+  push:
+    branches: [claude/android-ai-agent-app-2tsNk, main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  build:
+    name: Build Debug APK
+    runs-on: ubuntu-latest
+
+    steps:
+      # ── 1. Checkout ──────────────────────────────────────────────────────────
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # ── 2. Java 17 ──────────────────────────────────────────────────────────
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      # ── 3. Node.js 18 ───────────────────────────────────────────────────────
+      - name: Set up Node.js 18
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      # ── 4. npm install ───────────────────────────────────────────────────────
+      - name: Install npm dependencies
+        working-directory: AndroidAgent
+        run: npm install 2>&1 | tee /tmp/npm-install.log; exit ${PIPESTATUS[0]}
+
+      # ── 5. Gradle (cached download using wrapper in AndroidAgent/android) ────
+      - name: Set up Gradle (cached)
+        uses: gradle/actions/setup-gradle@v3
+        with:
+          build-root-directory: AndroidAgent/android
+          cache-read-only: false
+
+      # ── 6. Android SDK ──────────────────────────────────────────────────────
+      - name: Accept Android SDK licences & install components
+        run: |
+          SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          [ -f "$SDKMANAGER" ] || SDKMANAGER=$(find "$ANDROID_HOME" -name "sdkmanager" -type f | head -1)
+          yes | "$SDKMANAGER" --licenses || true
+          "$SDKMANAGER" "platform-tools" "platforms;android-34" "build-tools;34.0.0" "ndk;26.1.10909125"
+
+      - name: Create local.properties
+        working-directory: AndroidAgent/android
+        run: echo "sdk.dir=$ANDROID_HOME" > local.properties
+
+      # ── 7. Keystore ──────────────────────────────────────────────────────────
+      - name: Generate debug keystore
+        working-directory: AndroidAgent/android/app
+        run: |
+          keytool -genkey -v \
+            -keystore debug.keystore \
+            -storepass android \
+            -alias androiddebugkey \
+            -keypass android \
+            -keyalg RSA -keysize 2048 -validity 10000 \
+            -dname "CN=Android Debug,O=Android,C=US"
+
+      # ── 8. Build ─────────────────────────────────────────────────────────────
+      - name: Build Release APK
+        working-directory: AndroidAgent/android
+        run: |
+          set -o pipefail
+          chmod +x gradlew
+          ./gradlew assembleRelease --no-daemon --stacktrace \
+            2>&1 | tee /tmp/gradle-build.log
+
+      # ── Always: write build logs to job summary (visible even on failure) ────
+      - name: Write job summary
+        if: always()
+        run: |
+          echo "## Build #${{ github.run_number }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ -f /tmp/npm-install.log ]; then
+            echo "<details><summary>npm install (last 30 lines)</summary>" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            tail -30 /tmp/npm-install.log >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            echo "</details>" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ -f /tmp/gradle-build.log ]; then
+            echo "### Gradle log (last 120 lines)" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            tail -120 /tmp/gradle-build.log >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+          else
+            echo "**No Gradle log — build failed before reaching the assembleDebug step.**" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      # ── On failure: post snippet to PR (using file to avoid quoting issues) ──
+      - name: Post failure to PR
+        if: failure()
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          BODY=$(mktemp)
+          echo "## Build #${{ github.run_number }} failed" > "$BODY"
+          echo "" >> "$BODY"
+          echo '```' >> "$BODY"
+          if [ -f /tmp/gradle-build.log ]; then
+            grep -E "FAILURE:|Exception|error:|Could not|Unresolved|> Task :app" \
+              /tmp/gradle-build.log | head -60 >> "$BODY" || true
+          else
+            echo "No Gradle log — check job summary for npm or SDK errors." >> "$BODY"
+          fi
+          echo '```' >> "$BODY"
+          gh pr comment 1 --body-file "$BODY" || true
+
+      - name: Upload full logs (always)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-logs-${{ github.run_number }}
+          path: |
+            /tmp/gradle-build.log
+            /tmp/npm-install.log
+          retention-days: 7
+
+      # ── 9. Package & release ─────────────────────────────────────────────────
+      - name: Rename APK
+        run: |
+          mkdir -p dist
+          cp AndroidAgent/android/app/build/outputs/apk/release/app-release.apk \
+             "dist/AndroidAgent-build-${{ github.run_number }}.apk"
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: AndroidAgent-build-${{ github.run_number }}
+          path: dist/AndroidAgent-build-${{ github.run_number }}.apk
+          retention-days: 30
+
+      - name: Create GitHub Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="v0.1.build-${{ github.run_number }}"
+          gh release create "$TAG" \
+            --title "Android Agent — Build #${{ github.run_number }}" \
+            --notes "Κατέβασε το APK, άνοιξέ το στο κινητό → Εγκατάσταση. Απαιτείται Android 8.0+." \
+            "dist/AndroidAgent-build-${{ github.run_number }}.apk"
