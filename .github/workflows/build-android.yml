@@ -35,9 +35,16 @@ jobs:
       # ── 4. npm install ───────────────────────────────────────────────────────
       - name: Install npm dependencies
         working-directory: AndroidAgent
-        run: npm install --verbose 2>&1 | tail -40
+        run: npm install 2>&1 | tee /tmp/npm-install.log; exit ${PIPESTATUS[0]}
 
-      # ── 5. Android SDK ──────────────────────────────────────────────────────
+      # ── 5. Gradle (cached download using wrapper in AndroidAgent/android) ────
+      - name: Set up Gradle (cached)
+        uses: gradle/actions/setup-gradle@v3
+        with:
+          build-root-directory: AndroidAgent/android
+          cache-read-only: false
+
+      # ── 6. Android SDK ──────────────────────────────────────────────────────
       - name: Accept Android SDK licences & install components
         run: |
           SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
@@ -70,31 +77,57 @@ jobs:
           ./gradlew assembleDebug --no-daemon --stacktrace \
             2>&1 | tee /tmp/gradle-build.log
 
-      # ── On failure: post readable snippet to PR ───────────────────────────────
-      - name: Post failure details to PR
+      # ── Always: write build logs to job summary (visible even on failure) ────
+      - name: Write job summary
+        if: always()
+        run: |
+          echo "## Build #${{ github.run_number }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ -f /tmp/npm-install.log ]; then
+            echo "<details><summary>npm install (last 30 lines)</summary>" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            tail -30 /tmp/npm-install.log >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            echo "</details>" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ -f /tmp/gradle-build.log ]; then
+            echo "### Gradle log (last 120 lines)" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            tail -120 /tmp/gradle-build.log >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+          else
+            echo "**No Gradle log — build failed before reaching the assembleDebug step.**" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      # ── On failure: post snippet to PR (using file to avoid quoting issues) ──
+      - name: Post failure to PR
         if: failure()
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          LOG=/tmp/gradle-build.log
-          if [ -f "$LOG" ]; then
-            SNIPPET=$(grep -E "FAILURE:|> Task|Exception|error:|Could not|Unresolved" "$LOG" \
-              | head -60 | sed "s/\`/'/g")
+          BODY=$(mktemp)
+          echo "## Build #${{ github.run_number }} failed" > "$BODY"
+          echo "" >> "$BODY"
+          echo '```' >> "$BODY"
+          if [ -f /tmp/gradle-build.log ]; then
+            grep -E "FAILURE:|Exception|error:|Could not|Unresolved|> Task :app" \
+              /tmp/gradle-build.log | head -60 >> "$BODY" || true
           else
-            SNIPPET="No gradle log — failure happened before the build step."
+            echo "No Gradle log — check job summary for npm or SDK errors." >> "$BODY"
           fi
-          gh pr comment 1 --body "## Build #${{ github.run_number }} failed
+          echo '```' >> "$BODY"
+          gh pr comment 1 --body-file "$BODY" || true
 
-\`\`\`
-${SNIPPET}
-\`\`\`" || true
-
-      - name: Upload full Gradle log (always)
+      - name: Upload full logs (always)
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: gradle-log-${{ github.run_number }}
-          path: /tmp/gradle-build.log
+          name: build-logs-${{ github.run_number }}
+          path: |
+            /tmp/gradle-build.log
+            /tmp/npm-install.log
           retention-days: 7
 
       # ── 9. Package & release ─────────────────────────────────────────────────
