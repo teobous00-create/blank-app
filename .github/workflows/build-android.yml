@@ -38,18 +38,18 @@ jobs:
         run: npm install --verbose 2>&1 | tail -40
 
       # ── 5. Gradle wrapper ────────────────────────────────────────────────────
-      - name: Download Gradle 8.6 distribution
+      - name: Download Gradle 8.7 distribution
         run: |
-          wget -q https://services.gradle.org/distributions/gradle-8.6-bin.zip \
-               -O /tmp/gradle-8.6-bin.zip
-          unzip -q /tmp/gradle-8.6-bin.zip -d /tmp/gradle
+          wget -q https://services.gradle.org/distributions/gradle-8.7-bin.zip \
+               -O /tmp/gradle-8.7-bin.zip
+          unzip -q /tmp/gradle-8.7-bin.zip -d /tmp/gradle
 
       - name: Generate Gradle wrapper in isolated project
         run: |
           mkdir -p /tmp/wrapper-init
           echo 'rootProject.name = "wrapper-init"' > /tmp/wrapper-init/settings.gradle
-          /tmp/gradle/gradle-8.6/bin/gradle wrapper \
-            --gradle-version=8.6 \
+          /tmp/gradle/gradle-8.7/bin/gradle wrapper \
+            --gradle-version=8.7 \
             --project-dir /tmp/wrapper-init
           mkdir -p AndroidAgent/android/gradle/wrapper
           cp /tmp/wrapper-init/gradle/wrapper/gradle-wrapper.jar \
