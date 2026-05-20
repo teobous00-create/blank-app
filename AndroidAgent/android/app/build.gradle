@@ -25,6 +25,12 @@ android {
         cruncherEnabled false
     }
 
+    packagingOptions {
+        jniLibs {
+            useLegacyPackaging true
+        }
+    }
+
     defaultConfig {
         applicationId "com.androidagent"
         minSdkVersion rootProject.ext.minSdkVersion
