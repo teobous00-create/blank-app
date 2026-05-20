@@ -37,15 +37,7 @@ jobs:
         working-directory: AndroidAgent
         run: npm install --verbose 2>&1 | tail -40
 
-      # ── 5. Gradle (download & cache the 8.7 distribution once) ───────────────
-      # gradle-wrapper.jar + gradlew are committed; this action downloads the
-      # 100 MB Gradle distribution and caches it across runs.
-      - name: Set up Gradle (cached)
-        uses: gradle/actions/setup-gradle@v3
-        with:
-          cache-read-only: false
-
-      # ── 6. Android SDK ──────────────────────────────────────────────────────
+      # ── 5. Android SDK ──────────────────────────────────────────────────────
       - name: Accept Android SDK licences & install components
         run: |
           SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
