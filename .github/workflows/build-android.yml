@@ -36,22 +36,29 @@ jobs:
         working-directory: AndroidAgent
         run: npm install
 
-      # ── 5. Gradle — download binary then generate wrapper ────────────────────
-      # setup-gradle@v3 only patches an existing wrapper; it does NOT put a
-      # 'gradle' binary on PATH. We download the distribution ourselves so we
-      # can run `gradle wrapper` to produce gradlew + gradle-wrapper.jar.
+      # ── 5. Gradle wrapper ────────────────────────────────────────────────────
+      # Running `gradle wrapper` inside the RN android/ dir fails because
+      # Gradle configures the full project (loads the RN plugin) before it
+      # can run any task. Fix: generate the wrapper in an isolated empty
+      # project, then copy gradlew + gradle-wrapper.jar into android/.
       - name: Download Gradle 8.6 distribution
         run: |
           wget -q https://services.gradle.org/distributions/gradle-8.6-bin.zip \
                -O /tmp/gradle-8.6-bin.zip
           unzip -q /tmp/gradle-8.6-bin.zip -d /tmp/gradle
-          echo "/tmp/gradle/gradle-8.6/bin" >> "$GITHUB_PATH"
 
-      - name: Generate Gradle wrapper
-        working-directory: AndroidAgent/android
+      - name: Generate Gradle wrapper in isolated project
         run: |
-          gradle wrapper --gradle-version=8.6
-          chmod +x gradlew
+          mkdir -p /tmp/wrapper-init
+          echo 'rootProject.name = "wrapper-init"' > /tmp/wrapper-init/settings.gradle
+          /tmp/gradle/gradle-8.6/bin/gradle wrapper \
+            --gradle-version=8.6 \
+            --project-dir /tmp/wrapper-init
+          mkdir -p AndroidAgent/android/gradle/wrapper
+          cp /tmp/wrapper-init/gradle/wrapper/gradle-wrapper.jar \
+             AndroidAgent/android/gradle/wrapper/gradle-wrapper.jar
+          cp /tmp/wrapper-init/gradlew AndroidAgent/android/gradlew
+          chmod +x AndroidAgent/android/gradlew
 
       # ── 6. Android SDK ──────────────────────────────────────────────────────
       - name: Create local.properties
