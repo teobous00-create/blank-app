@@ -69,12 +69,12 @@ jobs:
             -dname "CN=Android Debug,O=Android,C=US"
 
       # ── 8. Build ─────────────────────────────────────────────────────────────
-      - name: Build Debug APK
+      - name: Build Release APK
         working-directory: AndroidAgent/android
         run: |
           set -o pipefail
           chmod +x gradlew
-          ./gradlew assembleDebug --no-daemon --stacktrace \
+          ./gradlew assembleRelease --no-daemon --stacktrace \
             2>&1 | tee /tmp/gradle-build.log
 
       # ── Always: write build logs to job summary (visible even on failure) ────
@@ -134,7 +134,7 @@ jobs:
       - name: Rename APK
         run: |
           mkdir -p dist
-          cp AndroidAgent/android/app/build/outputs/apk/debug/app-debug.apk \
+          cp AndroidAgent/android/app/build/outputs/apk/release/app-release.apk \
              "dist/AndroidAgent-build-${{ github.run_number }}.apk"
 
       - name: Upload APK artifact

@@ -66,17 +66,17 @@ jobs:
       - name: Make gradlew executable
         run: chmod +x AndroidAgent/android/gradlew
 
-      - name: Build debug APK
+      - name: Build release APK
         working-directory: AndroidAgent/android
-        run: ./gradlew assembleDebug --no-daemon --stacktrace
+        run: ./gradlew assembleRelease --no-daemon --stacktrace
         env:
           GRADLE_OPTS: -Xmx4g -XX:MaxMetaspaceSize=1g
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: app-debug-apk
-          path: AndroidAgent/android/app/build/outputs/apk/debug/app-debug.apk
+          name: app-release-apk
+          path: AndroidAgent/android/app/build/outputs/apk/release/app-release.apk
           retention-days: 7
 
       - name: Create GitHub Release
@@ -84,7 +84,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           mkdir -p dist
-          cp AndroidAgent/android/app/build/outputs/apk/debug/app-debug.apk \
+          cp AndroidAgent/android/app/build/outputs/apk/release/app-release.apk \
              "dist/AndroidAgent-build-${{ github.run_number }}.apk"
           gh release create "v0.1.build-${{ github.run_number }}" \
             --title "Android Agent — Build #${{ github.run_number }}" \
