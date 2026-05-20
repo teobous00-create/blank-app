@@ -11,7 +11,7 @@ import {
   PermissionsAndroid,
   Platform,
 } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import {NativeModules} from 'react-native';
 import {API_KEY_STORAGE} from '../services/ClaudeService';
 
 interface Props {
@@ -125,7 +125,7 @@ const SetupScreen: React.FC<Props> = ({onSetupComplete}) => {
       return;
     }
     setSaving(true);
-    await AsyncStorage.setItem(API_KEY_STORAGE, trimmed);
+    await NativeModules.StorageModule.setItem(API_KEY_STORAGE, trimmed);
     setSaving(false);
     onSetupComplete();
   }, [apiKey, onSetupComplete]);

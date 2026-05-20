@@ -1,4 +1,4 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import {NativeModules} from 'react-native';
 import {ActionResult, IntentPlan} from '../types';
 
 const ANTHROPIC_BASE = 'https://api.anthropic.com/v1/messages';
@@ -6,7 +6,7 @@ const MODEL = 'claude-sonnet-4-20250514';
 const API_KEY_STORAGE = 'anthropic_api_key';
 
 async function getApiKey(): Promise<string> {
-  const key = await AsyncStorage.getItem(API_KEY_STORAGE);
+  const key = await NativeModules.StorageModule.getItem(API_KEY_STORAGE);
   if (!key) {
     throw new Error('Anthropic API key not set. Please configure it in the setup screen.');
   }

@@ -5,7 +5,7 @@ import {
   StyleSheet,
   View,
 } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import {NativeModules} from 'react-native';
 import {API_KEY_STORAGE} from './src/services/ClaudeService';
 import SetupScreen from './src/components/SetupScreen';
 import FloatingOverlay from './src/components/FloatingOverlay';
@@ -16,7 +16,7 @@ const App: React.FC = () => {
   const [screen, setScreen] = useState<AppScreen>('loading');
 
   useEffect(() => {
-    AsyncStorage.getItem(API_KEY_STORAGE).then(key => {
+    NativeModules.StorageModule.getItem(API_KEY_STORAGE).then((key: string | null) => {
       setScreen(key ? 'agent' : 'setup');
     });
   }, []);

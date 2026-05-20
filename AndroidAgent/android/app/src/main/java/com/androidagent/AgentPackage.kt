@@ -11,6 +11,7 @@ class AgentPackage : ReactPackage {
             ScreenCaptureModule(reactContext),
             VoiceInputModule(reactContext),
             AccessibilityBridgeModule(reactContext),
+            StorageModule(reactContext),
         )
 
     override fun createViewManagers(reactContext: ReactApplicationContext): List<ViewManager<*, *>> =
