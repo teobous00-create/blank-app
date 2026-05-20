@@ -57,5 +57,5 @@ dependencies {
     implementation("org.jetbrains.kotlin:kotlin-stdlib:$kotlinVersion")
 }
 
-apply from: file("../../node_modules/@react-native-community/cli-platform-android/native_modules.gradle")
-applyNativeModulesAppBuildGradle(project)
+// Autolinking is handled by the com.facebook.react plugin (RN 0.71+).
+// The legacy native_modules.gradle approach is no longer needed.

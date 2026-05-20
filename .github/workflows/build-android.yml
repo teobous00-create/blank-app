@@ -61,6 +61,15 @@ jobs:
           chmod +x AndroidAgent/android/gradlew
 
       # ── 6. Android SDK ──────────────────────────────────────────────────────
+      - name: Accept Android SDK licences & install required components
+        run: |
+          SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          if [ ! -f "$SDKMANAGER" ]; then
+            SDKMANAGER=$(find "$ANDROID_HOME" -name "sdkmanager" -type f | head -1)
+          fi
+          yes | "$SDKMANAGER" --licenses || true
+          "$SDKMANAGER" "platform-tools" "platforms;android-34" "build-tools;34.0.0"
+
       - name: Create local.properties
         working-directory: AndroidAgent/android
         run: echo "sdk.dir=$ANDROID_HOME" > local.properties
