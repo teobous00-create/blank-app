@@ -1,0 +1,92 @@
+name: Build Android APK
+on:
+  push:
+    branches: [claude/android-ai-agent-app-2tsNk, main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: AndroidAgent/package-lock.json
+
+      - name: Install npm dependencies
+        working-directory: AndroidAgent
+        run: npm ci
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install NDK and platform
+        run: |
+          sdkmanager "ndk;26.1.10909125" "platforms;android-34" "build-tools;34.0.0"
+
+      - name: Cache Gradle
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ hashFiles('AndroidAgent/android/**/*.gradle*', 'AndroidAgent/android/gradle/wrapper/gradle-wrapper.properties') }}
+
+      - name: Create local.properties
+        working-directory: AndroidAgent/android
+        run: echo "sdk.dir=$ANDROID_HOME" > local.properties
+
+      - name: Generate debug keystore
+        working-directory: AndroidAgent/android/app
+        run: |
+          keytool -genkey -v \
+            -keystore debug.keystore \
+            -storepass android \
+            -alias androiddebugkey \
+            -keypass android \
+            -keyalg RSA -keysize 2048 -validity 10000 \
+            -dname "CN=Android Debug,O=Android,C=US"
+
+      - name: Make gradlew executable
+        run: chmod +x AndroidAgent/android/gradlew
+
+      - name: Build debug APK
+        working-directory: AndroidAgent/android
+        run: ./gradlew assembleDebug --no-daemon --stacktrace
+        env:
+          GRADLE_OPTS: -Xmx4g -XX:MaxMetaspaceSize=1g
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-debug-apk
+          path: AndroidAgent/android/app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 7
+
+      - name: Create GitHub Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mkdir -p dist
+          cp AndroidAgent/android/app/build/outputs/apk/debug/app-debug.apk \
+             "dist/AndroidAgent-build-${{ github.run_number }}.apk"
+          gh release create "v0.1.build-${{ github.run_number }}" \
+            --title "Android Agent — Build #${{ github.run_number }}" \
+            --notes "Κατέβασε το APK στο κινητό → Εγκατάσταση. Απαιτείται Android 8.0+." \
+            "dist/AndroidAgent-build-${{ github.run_number }}.apk"
