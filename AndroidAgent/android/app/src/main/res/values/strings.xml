@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">AndroidAgent</string>
+    <string name="accessibility_service_description">Allows AndroidAgent to control your phone to complete voice-commanded tasks autonomously.</string>
+</resources>

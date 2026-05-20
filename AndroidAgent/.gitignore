@@ -1,0 +1,20 @@
+# Node
+node_modules/
+npm-debug.log
+yarn-error.log
+
+# Android
+android/app/build/
+android/.gradle/
+android/build/
+android/local.properties
+*.keystore
+!android/app/debug.keystore
+
+# Metro
+.metro-health-check*
+
+# Misc
+.env
+.DS_Store
+*.log
