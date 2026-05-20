@@ -6,7 +6,7 @@ plugins {
 }
 
 extensions.configure(com.facebook.react.ReactSettingsExtension) { ex ->
-    ex.autolinkLibrariesFromCommand("node ${file('react-native-config.js').absolutePath}")
+    ex.autolinkLibrariesFromCommand()
 }
 
 rootProject.name = 'AndroidAgent'
